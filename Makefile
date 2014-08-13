@@ -2,6 +2,7 @@
 all: build doc
 
 BINDIR?=/tmp
+MANDIR?=/tmp
 
 setup.bin: setup.ml
 	@ocamlopt.opt -o $@ $< || ocamlopt -o $@ $< || ocamlc -o $@ $<
@@ -25,6 +26,7 @@ install: setup.bin
 	@./setup.bin -install
 	mkdir -p $(BINDIR)
 	install -m 0755 xe-upload-unikernel $(BINDIR)/xe-unikernel-upload
+	install -m 0644 xe-upload-unikernel.1 $(MANDIR)/xe-unikernel-upload.1
 
 test: setup.bin build
 	@./setup.bin -test
@@ -33,6 +35,7 @@ reinstall: install
 
 uninstall:
 	rm -f $(BINDIR)/xe-unikernel-upload
+	rm -f $(MANDIR)/xe-unikernel-upload.1
 
 clean:
 	@ocamlbuild -clean
