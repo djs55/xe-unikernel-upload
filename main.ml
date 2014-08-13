@@ -15,13 +15,16 @@
  *)
 open Version
 
-let command uri username password filename =
-  let open Lwt in
-  let t =
-    Boot_disk.upload ~pool:uri ~username ~password ~kernel:filename
-    >>= fun vdi ->
-    return () in
-  `Ok (Lwt_main.run t)
+let command uri username password filename = match filename with
+  | None -> `Error(true, "Please supply a unikernel filename using the --path option")
+  | Some filename ->
+    let open Lwt in
+    let t =
+      Boot_disk.upload ~pool:uri ~username ~password ~kernel:filename
+      >>= fun vdi ->
+      Printf.printf "%s\n%!" vdi;
+      return () in
+    `Ok (Lwt_main.run t)
 
 (* Command-line parsing *)
 open Cmdliner
@@ -52,8 +55,17 @@ let cmd =
     Arg.(value & opt string "password" & info [ "PASSWORD" ] ~doc) in
   let filename =
     let doc = "Path to the Unikernel binary." in
-    Arg.(value & opt file "unikernel" & info [ "PATH" ] ~doc) in
-  let man = help in
+    Arg.(value & opt (some file) None & info [ "PATH" ] ~doc) in
+  let man = [
+    `S "DESCRIPTION";
+    `P "Wrap a unikernel in a bootable disk image and upload to a XenServer pool.";
+    `S "RETURN VALUE";
+    `P "On success the program prints the uuid of the VDI containing the image to stdout.";
+    `S _common_options;
+    `P "These options are common to all services.";
+    `S "BUGS";
+    `P ("Check bug reports at " ^ project_url);
+  ] in
   Term.(ret (pure command $ uri $ username $ password $ filename)),
   Term.info Sys.argv.(0) ~version ~sdocs:_common_options ~doc ~man
 

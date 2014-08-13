@@ -97,6 +97,7 @@ let upload ~pool ~username ~password ~kernel =
       VDI.create ~rpc ~session_id ~name_label:"upload_disk" ~name_description:""
         ~sR:sr ~virtual_size:stats.Unix.LargeFile.st_size ~_type:`user ~sharable:false ~read_only:false
         ~other_config:[] ~xenstore_data:[] ~sm_config:[] ~tags:[] >>= fun vdi ->
+      VDI.get_uuid ~rpc ~session_id ~self:vdi >>= fun vdi_uuid ->
       Lwt.catch (fun _ ->
         let authentication = Disk.UserPassword(username, password) in
         let uri = Disk.uri ~pool:(Uri.of_string pool) ~authentication ~vdi in
@@ -139,7 +140,7 @@ let upload ~pool ~username ~password ~kernel =
         fail e
       ) >>= fun () ->
       Session.logout rpc session_id >>= fun () ->
-      return vdi
+      return vdi_uuid
     ) (fun e ->
       Session.logout rpc session_id >>= fun () ->
       fail e)

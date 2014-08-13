@@ -16,8 +16,9 @@
 
 open Xen_api
 
-val upload: pool:string -> username:string -> password:string -> kernel:string -> API.ref_VDI Lwt.t
+val upload: pool:string -> username:string -> password:string -> kernel:string -> string Lwt.t
 (** [upload pool username password kernel] creates a bootable disk
     containing a partition table, filesystem and grub config containing
     the PV kernel [kernel] and uploads it to the xapi at URL [pool]
-    with [username] and [password]. *)
+    with [username] and [password]. The return value is a printable uuid
+    corresponding to the VDI. *)
