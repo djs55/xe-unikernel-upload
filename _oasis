@@ -1,0 +1,14 @@
+OASISFormat: 0.2
+Name:        xe-unikernel-upload
+Version:     0.1
+Synopsis:    Tool to upload a Unikernel to a XenServer
+Authors:     Dave Scott
+License:     ISC
+Plugins:     META (0.2)
+BuildTools:  ocamlbuild
+
+Executable xe_unikernel_upload
+  CompiledObject:     best
+  Path:               .
+  MainIs:             main.ml
+  BuildDepends:       lwt, xen-api-client, xen-api-client.lwt, cmdliner
