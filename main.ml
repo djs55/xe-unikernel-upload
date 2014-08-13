@@ -15,8 +15,13 @@
  *)
 open Version
 
-let command filename =
-  `Ok ()
+let command uri username password filename =
+  let open Lwt in
+  let t =
+    Boot_disk.upload ~pool:uri ~username ~password ~kernel:filename
+    >>= fun vdi ->
+    return () in
+  `Ok (Lwt_main.run t)
 
 (* Command-line parsing *)
 open Cmdliner
@@ -36,11 +41,20 @@ let help = [
 
 let cmd =
   let doc = "Upload a unikernel" in
+  let uri =
+    let doc = "URI for the pool." in
+    Arg.(value & opt string "https://localhost/" & info [ "URI" ] ~doc) in 
+  let username =
+    let doc = "Username" in
+    Arg.(value & opt string "root" & info [ "USERNAME" ] ~doc) in
+  let password =
+    let doc = "Password" in
+    Arg.(value & opt string "password" & info [ "PASSWORD" ] ~doc) in
   let filename =
     let doc = "Path to the Unikernel binary." in
-    Arg.(value & pos 0 file "unikernel" & info [] ~doc) in
+    Arg.(value & opt file "unikernel" & info [ "PATH" ] ~doc) in
   let man = help in
-  Term.(ret (pure command $ filename)),
+  Term.(ret (pure command $ uri $ username $ password $ filename)),
   Term.info Sys.argv.(0) ~version ~sdocs:_common_options ~doc ~man
 
 let _ =

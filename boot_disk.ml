@@ -16,37 +16,10 @@
 
 (* TODO: automatically resize the image based on the kernel size *)
 
-module IntMap = Map.Make(struct
-  type t = int
-  let compare (x: int) (y: int) = compare x y
-end)
-
+module Int64Map = MemoryIO.Int64Map
 open Lwt
 
 let upload ~pool ~username ~password ~kernel =
-  (* sector number -> disk data *)
-  let map = ref IntMap.empty in
-  (* simple ramdisk to contain the partition table, filesystem,
-     kernel and grub config *)
-  let module Mem = struct
-    type 'a t = 'a
-    let ( >>= ) x f = f x
-    let return x = x
-
-    let write_sector buf n =
-      let sector = Cstruct.create 512 in
-      Cstruct.blit buf 0 sector 0 512;
-      map := IntMap.add n sector !map
-
-    let read_sector buf n =
-      if IntMap.mem n !map
-      then Cstruct.blit (IntMap.find n !map) 0 buf 0 512
-      else
-        for i = 0 to 511 do
-          Cstruct.set_uint8 buf i 0
-        done
-  end in
-
   Lwt_unix.LargeFile.stat kernel >>= fun stats ->
   if stats.Lwt_unix.LargeFile.st_size > Int64.(mul (mul 14L 1024L) 1024L)
   then failwith "We only support kernels < 14MiB in size";
@@ -59,26 +32,39 @@ let upload ~pool ~username ~password ~kernel =
   let partition = Mbr.Partition.make ~active:true ~ty:6 start_sector length_sectors in
   let mbr = Mbr.make [ partition ] in
 
-  let open Fat in
-  let open Fat_lwt in
-  let open S in
-  let ok = function
-    | Result.Ok x -> x
-    | Result.Error error -> failwith (Error.to_string error) in
-  let module MemFS = Fs.Make(Mem) in
-  let fs = MemFS.make (Int64.of_int32 length_bytes) in
-  let kernel_path = Path.of_string "/kernel" in
-  let menu_lst_list = [ "boot"; "grub"; "menu.lst" ] in
-  let menu_lst_path = Path.of_string_list menu_lst_list in
-  (* mkdir -p *)
-  let (_ : string) = List.fold_left (fun dir x ->
-    let x' = Filename.concat dir x in
-    ok (MemFS.mkdir fs (Path.of_string x'));
-    x'
-  ) "/" (List.(rev (tl (rev menu_lst_list)))) in
-  ok (MemFS.create fs menu_lst_path);
+  let (>>|=) m f = m >>= function
+    | `Error (`Unknown x) -> fail (Failure x)
+    | `Error `Unimplemented -> fail (Failure "Unimplemented")
+    | `Error `Is_read_only -> fail (Failure "Is_read_only")
+    | `Error `Disconnected -> fail (Failure "Disconnected")
+    | `Ok x -> f x in
+  let module MemFS = Fat.Fs.Make(MemoryIO)(Io_page) in
 
-  let menu_lst_file = MemFS.file_of_path fs menu_lst_path in
+  MemoryIO.connect "boot_disk" >>|= fun device ->
+  let map = device.MemoryIO.map in
+
+  let open Fat in
+  let open S in
+  let (>>*=) m f = m >>= function
+    | `Error (`Block_device e) -> fail (Failure (Fs.string_of_block_error e))
+    | `Error e -> fail (Failure (Fs.string_of_filesystem_error e))
+    | `Ok x -> f x in
+
+  MemFS.connect device >>*= fun fs ->
+  MemFS.format fs (Int64.of_int32 length_bytes) >>*= fun () ->
+
+  let kernel_path = "/kernel" in
+  let menu_lst_list = [ "boot"; "grub"; "menu.lst" ] in
+  let menu_lst_path = String.concat "/" menu_lst_list in
+  (* mkdir -p *)
+  Lwt_list.fold_left_s (fun dir x ->
+    let x' = Filename.concat dir x in
+    MemFS.mkdir fs x' >>*= fun () ->
+    return x'
+  ) "/" (List.(rev (tl (rev menu_lst_list))))
+  >>= fun _ ->
+  MemFS.create fs menu_lst_path >>*= fun () ->
+
   let menu_lst_string = String.concat "\n" [
     "default 0";
     "timeout 1";
@@ -88,34 +74,33 @@ let upload ~pool ~username ~password ~kernel =
   ] in
   let menu_lst_cstruct = Cstruct.create (String.length menu_lst_string) in
   Cstruct.blit_from_string menu_lst_string 0 menu_lst_cstruct 0 (Cstruct.len menu_lst_cstruct);
-  ok (MemFS.write fs menu_lst_file 0 menu_lst_cstruct);
+  MemFS.write fs menu_lst_path 0 menu_lst_cstruct >>*= fun () ->
 
   (* Load the kernel image (into RAM) *)
-  ok (MemFS.create fs kernel_path);
-  let kernel_file = MemFS.file_of_path fs kernel_path in
+  MemFS.create fs kernel_path >>*= fun () ->
   let len = Int64.to_int stats.Unix.LargeFile.st_size in
   let buffer = Cstruct.create len in
   Lwt_unix.openfile kernel [ Unix.O_RDONLY ] 0 >>= fun fd ->
-  really_read fd buffer >>= fun () ->
-  ok (MemFS.write fs kernel_file 0 buffer);
+  Lwt_cstruct.(complete (read fd) buffer) >>= fun () ->
+  MemFS.write fs kernel_path 0 buffer >>*= fun () ->
   Lwt_unix.close fd >>= fun () ->
 
   (* Talk to xapi and create the target VDI *)
   let open Xen_api in
   let open Xen_api_lwt_unix in
   let rpc = make pool in
-    lwt session_id = Session.login_with_password rpc username password "1.0" in
-    try_lwt
-      lwt pools = Pool.get_all rpc session_id in
+    Session.login_with_password rpc username password "1.0" >>= fun session_id ->
+    Lwt.catch (fun _ ->
+      Pool.get_all rpc session_id >>= fun pools ->
       let the_pool = List.hd pools in
-      lwt sr = Pool.get_default_SR rpc session_id the_pool in
-      lwt vdi = VDI.create ~rpc ~session_id ~name_label:"upload_disk" ~name_description:""
+      Pool.get_default_SR rpc session_id the_pool >>= fun sr ->
+      VDI.create ~rpc ~session_id ~name_label:"upload_disk" ~name_description:""
         ~sR:sr ~virtual_size:stats.Unix.LargeFile.st_size ~_type:`user ~sharable:false ~read_only:false
-        ~other_config:[] ~xenstore_data:[] ~sm_config:[] ~tags:[] in
-      (try_lwt
+        ~other_config:[] ~xenstore_data:[] ~sm_config:[] ~tags:[] >>= fun vdi ->
+      Lwt.catch (fun _ ->
         let authentication = Disk.UserPassword(username, password) in
         let uri = Disk.uri ~pool:(Uri.of_string pool) ~authentication ~vdi in
-        lwt oc = Disk.start_upload ~chunked:false ~uri in
+        Disk.start_upload ~chunked:false ~uri >>= fun oc ->
 
         (* MBR at sector 0 *)
         let sector = Cstruct.create 512 in
@@ -127,31 +112,35 @@ let upload ~pool ~username ~password ~kernel =
           Cstruct.set_uint8 zeroes i 0
         done;
         let rec write_zeroes n =
-          if n = 0
+          if n = 0L
           then return ()
           else
             oc.Data_channel.really_write zeroes >>= fun () ->
-            write_zeroes (n - 1) in
+            write_zeroes (Int64.pred n) in
         (* Write the empty blocks before the first partition *)
-        write_zeroes (Int32.to_int start_sector - 1) >>= fun () ->
+        write_zeroes (Int64.(pred (of_int32 start_sector))) >>= fun () ->
         (* Write each disk block *)
         let rec loop last remaining =
-          if IntMap.is_empty remaining
+          if Int64Map.is_empty remaining
           then return ()
           else begin
-            let n, data = IntMap.min_binding remaining in
-            write_zeroes (n - last - 1) >>= fun () ->
+            let n, data = Int64Map.min_binding remaining in
+            write_zeroes Int64.(sub (sub n last) 1L) >>= fun () ->
             oc.Data_channel.really_write data >>= fun () ->
-            let remaining = IntMap.remove n remaining in
+            let remaining = Int64Map.remove n remaining in
             loop n remaining
           end in
-        loop (-1) !map >>= fun () ->
+        loop (-1L) map >>= fun () ->
         oc.Data_channel.close ()
-      with e ->
+      ) (function
+      | e ->
         Printf.fprintf stderr "Caught: %s, cleaning up\n%!" (Printexc.to_string e);
         VDI.destroy rpc session_id vdi >>= fun () ->
-        fail e) >>= fun () ->
+        fail e
+      ) >>= fun () ->
+      Session.logout rpc session_id >>= fun () ->
       return vdi
-    finally
-      Session.logout rpc session_id
+    ) (fun e ->
+      Session.logout rpc session_id >>= fun () ->
+      fail e)
 

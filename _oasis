@@ -11,4 +11,4 @@ Executable xe_unikernel_upload
   CompiledObject:     best
   Path:               .
   MainIs:             main.ml
-  BuildDepends:       lwt, xen-api-client, xen-api-client.lwt, cmdliner
+  BuildDepends:       lwt, xen-api-client, xen-api-client.lwt, cmdliner, cstruct, mbr-format, mbr-format.lwt, fat-filesystem, io-page, io-page.unix
