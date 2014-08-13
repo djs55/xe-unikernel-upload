@@ -7,3 +7,8 @@
 *.cmx
 *.cmxs
 *.cmxa
+setup.log
+setup.data
+setup.bin
+main.native
+version.ml

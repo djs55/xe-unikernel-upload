@@ -1,0 +1,25 @@
+# OASIS_START
+# DO NOT EDIT (digest: 599735981defd3fc4c5df05832c77de2)
+# Ignore VCS directories, you can use the same kind of rule outside 
+# OASIS_START/STOP if you want to exclude directories that contains 
+# useless stuff for the build process
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Executable xe_unikernel_upload
+<main.{native,byte}>: pkg_lwt
+<main.{native,byte}>: pkg_xen-api-client
+<main.{native,byte}>: pkg_xen-api-client.lwt
+<main.{native,byte}>: pkg_cmdliner
+<*.ml{,i}>: pkg_lwt
+<*.ml{,i}>: pkg_xen-api-client
+<*.ml{,i}>: pkg_xen-api-client.lwt
+<*.ml{,i}>: pkg_cmdliner
+# OASIS_STOP
