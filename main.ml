@@ -15,9 +15,23 @@
  *)
 open Version
 
-let command uri username password filename = match filename with
-  | None -> `Error(true, "Please supply a unikernel filename using the --path option")
-  | Some filename ->
+exception Missing_param of string
+
+let command uri username password filename =
+  let rc = Options.read_rc () in
+  let required name = function
+  | None ->
+    if List.mem_assoc name rc
+    then List.assoc name rc
+    else raise (Missing_param name)
+  | Some x -> x in
+  try
+    let username = required "username" username in
+    let password = required "password" password in
+    let uri = required "server" uri in
+    let filename = match filename with
+    | None -> raise (Missing_param "path")
+    | Some x -> x in
     let open Lwt in
     let t =
       Boot_disk.upload ~pool:uri ~username ~password ~kernel:filename
@@ -25,7 +39,9 @@ let command uri username password filename = match filename with
       Printf.printf "%s\n%!" vdi;
       return () in
     `Ok (Lwt_main.run t)
-
+  with Missing_param x ->
+    `Error(true, "Please supply a unikernel filename using the --path option")
+    
 (* Command-line parsing *)
 open Cmdliner
 
@@ -46,13 +62,13 @@ let cmd =
   let doc = "Upload a unikernel" in
   let uri =
     let doc = "URI for the pool." in
-    Arg.(value & opt string "https://localhost/" & info [ "URI" ] ~doc) in 
+    Arg.(value & opt (some string) None & info [ "URI" ] ~doc) in 
   let username =
     let doc = "Username" in
-    Arg.(value & opt string "root" & info [ "USERNAME" ] ~doc) in
+    Arg.(value & opt (some string) None & info [ "USERNAME" ] ~doc) in
   let password =
     let doc = "Password" in
-    Arg.(value & opt string "password" & info [ "PASSWORD" ] ~doc) in
+    Arg.(value & opt (some string) None & info [ "PASSWORD" ] ~doc) in
   let filename =
     let doc = "Path to the Unikernel binary." in
     Arg.(value & opt (some file) None & info [ "PATH" ] ~doc) in
