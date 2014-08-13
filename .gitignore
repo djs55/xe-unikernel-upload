@@ -1,3 +1,4 @@
+_build
 *.annot
 *.cmo
 *.cma
@@ -12,3 +13,5 @@ setup.data
 setup.bin
 main.native
 version.ml
+xe-upload-unikernel
+xe-upload-unikernel.1
