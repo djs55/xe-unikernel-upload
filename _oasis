@@ -8,6 +8,7 @@ Plugins:     META (0.2)
 BuildTools:  ocamlbuild
 
 Executable xe_unikernel_upload
+  Install:            false
   CompiledObject:     best
   Path:               .
   MainIs:             main.ml
