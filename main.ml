@@ -62,16 +62,16 @@ let cmd =
   let doc = "Upload a unikernel" in
   let uri =
     let doc = "URI for the pool." in
-    Arg.(value & opt (some string) None & info [ "URI" ] ~doc) in 
+    Arg.(value & opt (some string) None & info [ "uri" ] ~doc) in 
   let username =
     let doc = "Username" in
-    Arg.(value & opt (some string) None & info [ "USERNAME" ] ~doc) in
+    Arg.(value & opt (some string) None & info [ "username" ] ~doc) in
   let password =
     let doc = "Password" in
-    Arg.(value & opt (some string) None & info [ "PASSWORD" ] ~doc) in
+    Arg.(value & opt (some string) None & info [ "password" ] ~doc) in
   let filename =
     let doc = "Path to the Unikernel binary." in
-    Arg.(value & opt (some file) None & info [ "PATH" ] ~doc) in
+    Arg.(value & opt (some file) None & info [ "path" ] ~doc) in
   let man = [
     `S "DESCRIPTION";
     `P "Wrap a unikernel in a bootable disk image and upload to a XenServer pool.";
