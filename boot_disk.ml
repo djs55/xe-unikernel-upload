@@ -15,7 +15,6 @@
  *)
 
 (* TODO: automatically resize the image based on the kernel size *)
-module Int64Map = MemoryIO.Int64Map
 open Lwt
 
 let (>>|=) m f = m >>= function

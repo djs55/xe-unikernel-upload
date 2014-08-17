@@ -16,5 +16,3 @@
 
 include V1_LWT.BLOCK
   with type id = string
-
-module Int64Map: module type of Map.Make(Int64)
