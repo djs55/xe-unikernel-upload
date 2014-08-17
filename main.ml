@@ -34,8 +34,10 @@ let command uri username password filename =
     | Some x -> x in
     let open Lwt in
     let t =
-      Boot_disk.upload ~pool:uri ~username ~password ~kernel:filename
-      >>= fun vdi ->
+      let module M = Bootable_disk.Make(Ramdisk) in
+      M.write ~kernel:filename ~id:"boot_disk" >>= fun device ->
+      let module Uploader = Disk_upload.Make(Ramdisk) in
+      Uploader.upload ~pool:uri ~username ~password ~device >>= fun vdi ->
       Printf.printf "%s\n%!" vdi;
       return () in
     `Ok (Lwt_main.run t)

@@ -14,11 +14,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Xen_api
+(* A FAT filesystem containing the grub configuration + kernel *)
 
-val upload: pool:string -> username:string -> password:string -> kernel:string -> string Lwt.t
-(** [upload pool username password kernel] creates a bootable disk
-    containing a partition table, filesystem and grub config containing
-    the PV kernel [kernel] and uploads it to the xapi at URL [pool]
-    with [username] and [password]. The return value is a printable uuid
-    corresponding to the VDI. *)
+module Make(B: V1_LWT.BLOCK) : sig
+
+  val write: kernel:string -> device:B.t -> unit Lwt.t
+  (** [create a grub-readable filesystem containing [kernel] on [device] *)
+
+end
