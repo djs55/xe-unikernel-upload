@@ -34,7 +34,7 @@ let command uri username password filename =
     | Some x -> x in
     let open Lwt in
     let t =
-      let module M = Boot_disk.Make(MemoryIO) in
+      let module M = Bootable_disk.Make(MemoryIO) in
       M.write ~kernel:filename ~id:"boot_disk" >>= fun device ->
       let module Uploader = Disk_upload.Make(MemoryIO) in
       Uploader.upload ~pool:uri ~username ~password ~device >>= fun vdi ->
