@@ -38,16 +38,20 @@ let upload ~pool ~username ~password ~kernel =
   let partition = Mbr.Partition.make ~active:true ~ty:6 start_sector length_sectors in
   let mbr = Mbr.make [ partition ] in
 
-  let module FS = Filesystem.Make(MemoryIO) in
-  let (>>|=) m f = m >>= function
-    | `Error (`Unknown x) -> fail (Failure x)
-    | `Error `Unimplemented -> fail (Failure "Unimplemented")
-    | `Error `Is_read_only -> fail (Failure "Is_read_only")
-    | `Error `Disconnected -> fail (Failure "Disconnected")
-    | `Ok x -> f x in
   MemoryIO.connect "boot_disk" >>|= fun device ->
-  let map = device.MemoryIO.map in
-  FS.write ~kernel ~device >>= fun () ->
+  let sector = Cstruct.create 512 in
+  Mbr.marshal sector mbr;
+  MemoryIO.write device 0L [ sector ] >>|= fun () ->
+
+  let module Partition = Mbr_partition.Make(MemoryIO) in
+  Partition.connect {
+    Partition.b = device;
+    start_sector = Int64.of_int32 start_sector;
+    length_sectors = Int64.of_int32 length_sectors;
+  } >>|= fun partition ->
+
+  let module FS = Filesystem.Make(Partition) in
+  FS.write ~kernel ~device:partition >>= fun () ->
 
   (* Talk to xapi and create the target VDI *)
   let open Xen_api in
@@ -67,37 +71,15 @@ let upload ~pool ~username ~password ~kernel =
         let uri = Disk.uri ~pool:(Uri.of_string pool) ~authentication ~vdi in
         Disk.start_upload ~chunked:false ~uri >>= fun oc ->
 
-        (* MBR at sector 0 *)
-        let sector = Cstruct.create 512 in
-        Mbr.marshal sector mbr;
-        oc.Data_channel.really_write sector >>= fun () ->
-        (* Create an empty sector (upload isn't sparse) *)
-        let zeroes = Cstruct.create 512 in
-        for i = 0 to Cstruct.len zeroes - 1 do
-          Cstruct.set_uint8 zeroes i 0
-        done;
-        let rec write_zeroes n =
-          if n = 0L
-          then return ()
-          else
-            oc.Data_channel.really_write zeroes >>= fun () ->
-            write_zeroes (Int64.pred n) in
-        (* Write the empty blocks before the first partition *)
-        write_zeroes (Int64.(pred (of_int32 start_sector))) >>= fun () ->
-        (* Write each disk block *)
-        let rec loop last remaining =
-          if Int64Map.is_empty remaining
+        let rec loop n =
+          if n = Int64.of_int32 disk_length_sectors
           then return ()
           else begin
-            let n, data = Int64Map.min_binding remaining in
-            write_zeroes Int64.(sub (sub n last) 1L) >>= fun () ->
-            oc.Data_channel.really_write data >>= fun () ->
-            let remaining = Int64Map.remove n remaining in
-            (* Each data block can be > 1 sector, so adjust 'n' (the sector just written) *)
-            let n = Int64.(pred (add n (of_int (Cstruct.len data / 512)))) in
-            loop n remaining
+            MemoryIO.read device n [ sector ] >>|= fun () ->
+            oc.Data_channel.really_write sector >>= fun () ->
+            loop (Int64.succ n)
           end in
-        loop (-1L) map >>= fun () ->
+        loop 0L >>= fun () ->
         oc.Data_channel.close ()
       ) (function
       | e ->
