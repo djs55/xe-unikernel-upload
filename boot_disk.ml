@@ -52,43 +52,5 @@ let upload ~pool ~username ~password ~kernel =
   let module FS = Filesystem.Make(Partition) in
   FS.write ~kernel ~device:partition >>= fun () ->
 
-  (* Talk to xapi and create the target VDI *)
-  let open Xen_api in
-  let open Xen_api_lwt_unix in
-  let rpc = make pool in
-    Session.login_with_password rpc username password "1.0" >>= fun session_id ->
-    Lwt.catch (fun _ ->
-      Pool.get_all rpc session_id >>= fun pools ->
-      let the_pool = List.hd pools in
-      Pool.get_default_SR rpc session_id the_pool >>= fun sr ->
-      VDI.create ~rpc ~session_id ~name_label:"upload_disk" ~name_description:""
-        ~sR:sr ~virtual_size:stats.Unix.LargeFile.st_size ~_type:`user ~sharable:false ~read_only:false
-        ~other_config:[] ~xenstore_data:[] ~sm_config:[] ~tags:[] >>= fun vdi ->
-      VDI.get_uuid ~rpc ~session_id ~self:vdi >>= fun vdi_uuid ->
-      Lwt.catch (fun _ ->
-        let authentication = Disk.UserPassword(username, password) in
-        let uri = Disk.uri ~pool:(Uri.of_string pool) ~authentication ~vdi in
-        Disk.start_upload ~chunked:false ~uri >>= fun oc ->
-
-        let rec loop n =
-          if n = Int64.of_int32 disk_length_sectors
-          then return ()
-          else begin
-            MemoryIO.read device n [ sector ] >>|= fun () ->
-            oc.Data_channel.really_write sector >>= fun () ->
-            loop (Int64.succ n)
-          end in
-        loop 0L >>= fun () ->
-        oc.Data_channel.close ()
-      ) (function
-      | e ->
-        Printf.fprintf stderr "Caught: %s, cleaning up\n%!" (Printexc.to_string e);
-        VDI.destroy rpc session_id vdi >>= fun () ->
-        fail e
-      ) >>= fun () ->
-      Session.logout rpc session_id >>= fun () ->
-      return vdi_uuid
-    ) (fun e ->
-      Session.logout rpc session_id >>= fun () ->
-      fail e)
-
+  let module Uploader = Disk_upload.Make(MemoryIO) in
+  Uploader.upload ~pool ~username ~password ~device
