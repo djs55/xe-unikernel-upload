@@ -24,33 +24,33 @@ let (>>|=) m f = m >>= function
 | `Error `Disconnected -> fail (Failure "Disconnected")
 | `Ok x -> f x
 
-let upload ~pool ~username ~password ~kernel =
+module Make(B: V1_LWT.BLOCK) = struct
 
-  Lwt_unix.LargeFile.stat kernel >>= fun stats ->
-  if stats.Lwt_unix.LargeFile.st_size > Int64.(mul (mul 14L 1024L) 1024L)
-  then failwith "We only support kernels < 14MiB in size";
-  let disk_length_bytes = Int32.(mul (mul 16l 1024l) 1024l) in
-  let disk_length_sectors = Int32.(div disk_length_bytes 512l) in
+  let write ~kernel ~id =
+    Lwt_unix.LargeFile.stat kernel >>= fun stats ->
+    if stats.Lwt_unix.LargeFile.st_size > Int64.(mul (mul 14L 1024L) 1024L)
+    then failwith "We only support kernels < 14MiB in size";
+    let disk_length_bytes = Int32.(mul (mul 16l 1024l) 1024l) in
+    let disk_length_sectors = Int32.(div disk_length_bytes 512l) in
 
-  let start_sector = 2048l in
-  let length_sectors = Int32.sub disk_length_sectors start_sector in
-  let partition = Mbr.Partition.make ~active:true ~ty:6 start_sector length_sectors in
-  let mbr = Mbr.make [ partition ] in
+    let start_sector = 2048l in
+    let length_sectors = Int32.sub disk_length_sectors start_sector in
+    let partition = Mbr.Partition.make ~active:true ~ty:6 start_sector length_sectors in
+    let mbr = Mbr.make [ partition ] in
 
-  MemoryIO.connect "boot_disk" >>|= fun device ->
-  let sector = Cstruct.create 512 in
-  Mbr.marshal sector mbr;
-  MemoryIO.write device 0L [ sector ] >>|= fun () ->
+    B.connect id >>|= fun device ->
+    let sector = Cstruct.create 512 in
+    Mbr.marshal sector mbr;
+    B.write device 0L [ sector ] >>|= fun () ->
 
-  let module Partition = Mbr_partition.Make(MemoryIO) in
-  Partition.connect {
-    Partition.b = device;
-    start_sector = Int64.of_int32 start_sector;
-    length_sectors = Int64.of_int32 length_sectors;
-  } >>|= fun partition ->
+    let module Partition = Mbr_partition.Make(B) in
+    Partition.connect {
+      Partition.b = device;
+      start_sector = Int64.of_int32 start_sector;
+      length_sectors = Int64.of_int32 length_sectors;
+    } >>|= fun partition ->
 
-  let module FS = Filesystem.Make(Partition) in
-  FS.write ~kernel ~device:partition >>= fun () ->
-
-  let module Uploader = Disk_upload.Make(MemoryIO) in
-  Uploader.upload ~pool ~username ~password ~device
+    let module FS = Filesystem.Make(Partition) in
+    FS.write ~kernel ~device:partition >>= fun () ->
+    return device
+end
