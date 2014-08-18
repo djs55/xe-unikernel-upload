@@ -16,8 +16,8 @@ setup.data: setup.bin
 
 build: setup.data setup.bin version.ml
 	@./setup.bin -build
-	mv main.native xe-upload-unikernel
-	./xe-upload-unikernel --help=groff > xe-upload-unikernel.1
+	mv main.native xe-unikernel-upload
+	./xe-unikernel-upload --help=groff > xe-unikernel-upload.1
 
 doc: setup.data setup.bin
 	@./setup.bin -doc
@@ -25,8 +25,8 @@ doc: setup.data setup.bin
 install: setup.bin
 	@./setup.bin -install
 	mkdir -p $(BINDIR)
-	install -m 0755 xe-upload-unikernel $(BINDIR)/xe-unikernel-upload
-	install -m 0644 xe-upload-unikernel.1 $(MANDIR)/xe-unikernel-upload.1
+	install -m 0755 xe-unikernel-upload $(BINDIR)/xe-unikernel-upload
+	install -m 0644 xe-unikernel-upload.1 $(MANDIR)/xe-unikernel-upload.1
 
 test: setup.bin build
 	@./setup.bin -test
@@ -39,4 +39,4 @@ uninstall:
 
 clean:
 	@ocamlbuild -clean
-	@rm -f setup.data setup.log setup.bin xe-upload-unikernel.1 xe-upload-unikernel
+	@rm -f setup.data setup.log setup.bin xe-unikernel-upload.1 xe-unikernel-upload
