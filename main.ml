@@ -21,8 +21,9 @@ let command uri username password filename =
   let rc = Options.read_rc () in
   let required name = function
   | None ->
+    (* The API client needs URIs, the config file contains an IP/DNS name *)
     if List.mem_assoc name rc
-    then List.assoc name rc
+    then (if name = "server" then "https://" else "") ^ (List.assoc name rc)
     else raise (Missing_param name)
   | Some x -> x in
   try
