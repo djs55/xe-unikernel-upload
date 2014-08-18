@@ -1,6 +1,6 @@
 OASISFormat: 0.2
 Name:        xe-unikernel-upload
-Version:     0.3
+Version:     0.4
 Synopsis:    Tool to upload a Unikernel to a XenServer
 Authors:     Dave Scott
 License:     ISC
