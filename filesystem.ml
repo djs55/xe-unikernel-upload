@@ -43,27 +43,28 @@ module Make(B: V1_LWT.BLOCK) = struct
     FS.format fs (Int64.of_int32 length_bytes) >>*= fun () ->
 
     let kernel_path = "/kernel" in
-    let menu_lst_list = [ "boot"; "grub"; "menu.lst" ] in
-    let menu_lst_path = String.concat "/" menu_lst_list in
+    let bootloader_list = [ "boot"; "isolinux"; "isolinux.cfg" ] in
+    let bootloader_path = String.concat "/" bootloader_list in
     (* mkdir -p *)
     Lwt_list.fold_left_s (fun dir x ->
       let x' = Filename.concat dir x in
       FS.mkdir fs x' >>*= fun () ->
       return x'
-    ) "/" (List.(rev (tl (rev menu_lst_list))))
+    ) "/" (List.(rev (tl (rev bootloader_list))))
     >>= fun _ ->
-    FS.create fs menu_lst_path >>*= fun () ->
+    FS.create fs bootloader_path >>*= fun () ->
 
-    let menu_lst_string = String.concat "\n" [
-      "default 0";
-      "timeout 1";
-      "title Mirage";
-      "root (hd0,0)";
-      "kernel /kernel";
+    let bootloader_string = String.concat "\n" [
+      "default mirage";
+      "prompt 1";
+      "timeout 50";
+      "";
+      "label mirage";
+      "  kernel /kernel";
     ] in
-    let menu_lst_cstruct = Cstruct.create (String.length menu_lst_string) in
-    Cstruct.blit_from_string menu_lst_string 0 menu_lst_cstruct 0 (Cstruct.len menu_lst_cstruct);
-    FS.write fs menu_lst_path 0 menu_lst_cstruct >>*= fun () ->
+    let bootloader_cstruct = Cstruct.create (String.length bootloader_string) in
+    Cstruct.blit_from_string bootloader_string 0 bootloader_cstruct 0 (Cstruct.len bootloader_cstruct);
+    FS.write fs bootloader_path 0 bootloader_cstruct >>*= fun () ->
 
     (* Write the kernel image *)
     FS.create fs kernel_path >>*= fun () ->
