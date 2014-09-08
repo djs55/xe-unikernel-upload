@@ -1,4 +1,4 @@
-OPAM_DEPENDS="xen-api-client lwt cmdliner"
+OPAM_DEPENDS="xen-api-client lwt cmdliner fat-filesystem io-page mbr-format"
 
 case "$OCAML_VERSION,$OPAM_VERSION" in
 3.12.1,1.0.0) ppa=avsm/ocaml312+opam10 ;;
