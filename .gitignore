@@ -14,5 +14,5 @@ setup.data
 setup.bin
 main.native
 version.ml
-xe-upload-unikernel
-xe-upload-unikernel.1
+xe-unikernel-upload
+xe-unikernel-upload.1
