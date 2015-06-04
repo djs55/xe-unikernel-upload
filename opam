@@ -13,7 +13,7 @@ depends: [
   "lwt"
   "xen-api-client"
   "cstruct"
-  "mbr-format" {>= "0.3" }
+  "mbr-format"
   "fat-filesystem"
   "io-page"
   "mirage-types" {>= "2.3.0"}
