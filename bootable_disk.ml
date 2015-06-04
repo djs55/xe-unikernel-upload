@@ -16,17 +16,11 @@
 
 (* TODO: automatically resize the image based on the kernel size *)
 open Lwt
-
-let (>>|=) m f = m >>= function
-| `Error (`Unknown x) -> fail (Failure x)
-| `Error `Unimplemented -> fail (Failure "Unimplemented")
-| `Error `Is_read_only -> fail (Failure "Is_read_only")
-| `Error `Disconnected -> fail (Failure "Disconnected")
-| `Ok x -> f x
+open Common
 
 module Make(B: V1_LWT.BLOCK) = struct
 
-  let write ~kernel ~id =
+  let write ~kernel ~t =
     Lwt_unix.LargeFile.stat kernel >>= fun stats ->
     if stats.Lwt_unix.LargeFile.st_size > Int64.(mul (mul 14L 1024L) 1024L)
     then failwith "We only support kernels < 14MiB in size";
@@ -38,19 +32,17 @@ module Make(B: V1_LWT.BLOCK) = struct
     let partition = Mbr.Partition.make ~active:true ~ty:6 start_sector length_sectors in
     let mbr = Mbr.make [ partition ] in
 
-    B.connect id >>|= fun device ->
     let sector = Cstruct.create 512 in
     Mbr.marshal sector mbr;
-    B.write device 0L [ sector ] >>|= fun () ->
+    B.write t 0L [ sector ] >>|= fun () ->
 
     let module Partition = Mbr_partition.Make(B) in
     Partition.connect {
-      Partition.b = device;
+      Partition.b = t;
       start_sector = Int64.of_int32 start_sector;
       length_sectors = Int64.of_int32 length_sectors;
     } >>|= fun partition ->
 
     let module FS = Filesystem.Make(Partition) in
-    FS.write ~kernel ~device:partition >>= fun () ->
-    return device
+    FS.write ~kernel ~device:partition
 end

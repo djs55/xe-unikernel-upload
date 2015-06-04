@@ -18,7 +18,6 @@ open Xen_api
 
 module Make(B: V1_LWT.BLOCK) : sig
 
-  val write: kernel:string -> id:B.id -> B.t Lwt.t
-  (** [write ~kernel ~id]: create a partition, a filesystem, a grub config
-      and write [kernel] to BLOCK device with id [id] *)
+  val write: kernel:string -> t:B.t -> unit Lwt.t
+  (** [write ~kernel ~t]: create a partition to block device [t] *)
 end
