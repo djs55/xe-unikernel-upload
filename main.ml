@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 open Version
+open Common
 
 exception Missing_param of string
 
@@ -36,9 +37,10 @@ let command uri username password filename =
     let open Lwt in
     let t =
       let module M = Bootable_disk.Make(Ramdisk) in
-      M.write ~kernel:filename ~id:"boot_disk" >>= fun device ->
+      Ramdisk.connect "boot_disk" >>|= fun t ->
+      M.write ~kernel:filename ~t >>= fun () ->
       let module Uploader = Disk_upload.Make(Ramdisk) in
-      Uploader.upload ~pool:uri ~username ~password ~device >>= fun vdi ->
+      Uploader.upload ~pool:uri ~username ~password ~device:t >>= fun vdi ->
       Printf.printf "%s\n%!" vdi;
       return () in
     `Ok (Lwt_main.run t)

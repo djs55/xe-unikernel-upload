@@ -1,5 +1,5 @@
 (*
- * Copyright (C) 2011-2013 Citrix Systems Inc
+ * Copyright (C) 2011-2013 Citrix Inc
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-include V1_LWT.BLOCK
-  with type id = string
+(* TODO: automatically resize the image based on the kernel size *)
+open Lwt
 
-val connect: string -> [ `Ok of t | `Error of error ] Lwt.t
+let (>>|=) m f = m >>= function
+| `Error (`Unknown x) -> fail (Failure x)
+| `Error `Unimplemented -> fail (Failure "Unimplemented")
+| `Error `Is_read_only -> fail (Failure "Is_read_only")
+| `Error `Disconnected -> fail (Failure "Disconnected")
+| `Ok x -> f x
