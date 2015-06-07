@@ -1,8 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: a2dec02133414edf1e99808a07de23ae)
-# Ignore VCS directories, you can use the same kind of rule outside 
-# OASIS_START/STOP if you want to exclude directories that contains 
+# DO NOT EDIT (digest: b3db77364163b4adbc00aa470077f421)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
+true: annot, bin_annot
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
 ".bzr": -traverse
@@ -14,26 +15,26 @@
 "_darcs": -traverse
 "_darcs": not_hygienic
 # Executable xe_unikernel_upload
-<main.{native,byte}>: pkg_lwt
-<main.{native,byte}>: pkg_xen-api-client
-<main.{native,byte}>: pkg_xen-api-client.lwt
 <main.{native,byte}>: pkg_cmdliner
 <main.{native,byte}>: pkg_cstruct
-<main.{native,byte}>: pkg_mbr-format
-<main.{native,byte}>: pkg_mbr-format.lwt
-<main.{native,byte}>: pkg_mbr-format.mirage
 <main.{native,byte}>: pkg_fat-filesystem
 <main.{native,byte}>: pkg_io-page
 <main.{native,byte}>: pkg_io-page.unix
-<*.ml{,i}>: pkg_lwt
-<*.ml{,i}>: pkg_xen-api-client
-<*.ml{,i}>: pkg_xen-api-client.lwt
-<*.ml{,i}>: pkg_cmdliner
-<*.ml{,i}>: pkg_cstruct
-<*.ml{,i}>: pkg_mbr-format
-<*.ml{,i}>: pkg_mbr-format.lwt
-<*.ml{,i}>: pkg_mbr-format.mirage
-<*.ml{,i}>: pkg_fat-filesystem
-<*.ml{,i}>: pkg_io-page
-<*.ml{,i}>: pkg_io-page.unix
+<main.{native,byte}>: pkg_lwt
+<main.{native,byte}>: pkg_mbr-format
+<main.{native,byte}>: pkg_mbr-format.lwt
+<main.{native,byte}>: pkg_mbr-format.mirage
+<main.{native,byte}>: pkg_xen-api-client
+<main.{native,byte}>: pkg_xen-api-client.lwt
+<*.ml{,i,y}>: pkg_cmdliner
+<*.ml{,i,y}>: pkg_cstruct
+<*.ml{,i,y}>: pkg_fat-filesystem
+<*.ml{,i,y}>: pkg_io-page
+<*.ml{,i,y}>: pkg_io-page.unix
+<*.ml{,i,y}>: pkg_lwt
+<*.ml{,i,y}>: pkg_mbr-format
+<*.ml{,i,y}>: pkg_mbr-format.lwt
+<*.ml{,i,y}>: pkg_mbr-format.mirage
+<*.ml{,i,y}>: pkg_xen-api-client
+<*.ml{,i,y}>: pkg_xen-api-client.lwt
 # OASIS_STOP
