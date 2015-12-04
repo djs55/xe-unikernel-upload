@@ -36,7 +36,7 @@ module Make(B: V1_LWT.BLOCK) = struct
     let open Xen_api in
     let open Xen_api_lwt_unix in
     let rpc = make pool in
-      Session.login_with_password rpc username password "1.0" >>= fun session_id ->
+      Session.login_with_password ~rpc ~uname:username ~pwd:password ~version:"1.0" ~originator:"xe-unikernel-upload" >>= fun session_id ->
       Lwt.catch (fun _ ->
         Pool.get_all rpc session_id >>= fun pools ->
         let the_pool = List.hd pools in
