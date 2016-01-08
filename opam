@@ -11,7 +11,7 @@ depends: [
   "ocamlfind"
   "cmdliner"
   "lwt"
-  "xen-api-client"
+  "xen-api-client" {>= "0.9.10"}
   "cstruct"
   "mbr-format" {>= "0.3"}
   "fat-filesystem"
